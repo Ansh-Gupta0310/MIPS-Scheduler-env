@@ -31,7 +31,7 @@ from mips_scheduler_env import MIPSSchedulerEnv, SchedulerAction
 
 # ── Configuration ───────────────────────────────────────────────────────────
 
-IMAGE_NAME = os.getenv("IMAGE_NAME")  # Docker image for the env
+IMAGE_NAME = os.getenv("IMAGE_NAME", "mips-scheduler-env:latest")  # Docker image for the env
 API_BASE_URL = os.getenv("API_BASE_URL") or "https://router.huggingface.co/v1"
 API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
 MODEL_NAME = os.getenv("MODEL_NAME") or "Qwen/Qwen2.5-72B-Instruct"
@@ -132,17 +132,34 @@ Reply with ONLY a single integer from the legal_actions list.
 # ── Parse model response ───────────────────────────────────────────────────
 
 def parse_model_response(response_text: str, legal_actions: List[int]) -> int:
-    """Extract an integer instruction_id from the model's response."""
+    """
+    Extract an integer instruction_id from the model's response.
+    Specifically looks for the final number mentioned if the model 
+    provided reasoning, or any number that matches a legal action.
+    """
     import re
+    
+    # Remove markdown bold/code formatting
+    clean_text = response_text.replace("**", "").replace("`", "")
+    
+    # Find all integers in the text
+    numbers = re.findall(r"\d+", clean_text)
+    
+    if not numbers:
+        return legal_actions[0] if legal_actions else 0
 
-    # Try to find any integer in the response
-    numbers = re.findall(r"\b(\d+)\b", response_text.strip())
+    # Strategy: Check numbers from last to first (final answers are usually at the end)
+    for num_str in reversed(numbers):
+        num = int(num_str)
+        if num in legal_actions:
+            return num
+            
+    # Fallback to first mentioned legal number
     for num_str in numbers:
         num = int(num_str)
         if num in legal_actions:
             return num
 
-    # Fallback: pick the first legal action
     return legal_actions[0] if legal_actions else 0
 
 
@@ -219,7 +236,7 @@ async def run_task(task_name: str, client: OpenAI) -> float:
                 break
 
         # Extract final grade
-        score = obs.metadata.get("final_grade", 0.0)
+        score = obs.final_grade
         score = min(max(score, 0.0), 1.0)
         success = score > 0.0
 

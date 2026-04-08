@@ -185,7 +185,9 @@ class MIPSSchedulerEnvironment(
             done = True
 
         # Compute reward
-        step_reward = -stalls_this_step  # per-step penalty for stalls
+        # We give a small positive bonus (+0.01) for progress (scheduling an instruction)
+        # and a penalty (-1.0) for each stall cycle caused.
+        step_reward = 0.01 - float(stalls_this_step)
 
         if done and self._tracker.is_complete:
             # Episode-end bonus: exp(-total_stalls/max_possible_stalls)
@@ -196,6 +198,7 @@ class MIPSSchedulerEnvironment(
 
         # Compute final grade if done
         metadata: dict[str, Any] = {}
+        grade = 0.0
         if done and self._tracker.is_complete:
             grade = compute_grade(self._state.task_name, self._schedule_order)
             metadata["final_grade"] = grade
@@ -220,6 +223,7 @@ class MIPSSchedulerEnvironment(
             total_cycles=self._total_cycles,
             task_name=self._state.task_name,
             difficulty=self._state.difficulty,
+            final_grade=grade,
             metadata=metadata,
         )
 

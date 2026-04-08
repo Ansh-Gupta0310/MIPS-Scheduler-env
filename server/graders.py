@@ -102,23 +102,32 @@ def compute_grade(
 
     # Edge case: if naive == best, the task has no room for improvement
     if naive_stalls <= best_stalls:
-        # If the agent did at least as well as naive, score = 1.0
-        return 1.0 if agent_stalls <= naive_stalls else 0.0
+        # If the agent did at least as well as naive, score = HIGH but < 1.0
+        # If worse, score = LOW but > 0.0
+        raw_score = 1.0 if agent_stalls <= naive_stalls else 0.0
+    else:
+        # Linear interpolation: best → 1.0, naive → 0.0
+        # Clamp to [0, 1]
+        raw_score = 1.0 - (agent_stalls - best_stalls) / (naive_stalls - best_stalls)
+        raw_score = max(0.0, min(1.0, raw_score))
 
-    # Linear interpolation: best → 1.0, naive → 0.0
-    # Clamp to [0, 1]
-    score = 1.0 - (agent_stalls - best_stalls) / (naive_stalls - best_stalls)
-    score = max(0.0, min(1.0, score))
-
-    return round(score, 4)
+    # SQUEEZE: The validator requires scores strictly between 0 and 1.
+    # Map [0, 1] -> [0.01, 0.99]
+    squeezed_score = 0.01 + (0.98 * raw_score)
+    
+    return round(squeezed_score, 4)
 
 
 def compute_episode_reward(total_stalls: int, max_possible_stalls: int) -> float:
     """
-    Episode-end bonus reward, normalized to [0, 1].
+    Episode-end bonus reward, normalized to (0, 1).
     
-    reward = exp(-total_stalls / max_possible_stalls)
+    reward = exp(-total_stalls / max_possible_stalls) squeezed to (0.01, 0.99)
     """
     if max_possible_stalls <= 0:
-        return 1.0
-    return math.exp(-total_stalls / max_possible_stalls)
+        raw_bonus = 1.0
+    else:
+        raw_bonus = math.exp(-total_stalls / max_possible_stalls)
+    
+    # Squeeze to (0.01, 0.99)
+    return 0.01 + (0.98 * raw_bonus)

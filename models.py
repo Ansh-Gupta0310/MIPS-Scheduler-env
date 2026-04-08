@@ -46,6 +46,9 @@ class SchedulerObservation(Observation):
     # ── Task info ──
     task_name: str = ""
     difficulty: str = ""
+    
+    # ── Final Grade (Hackathon Requirement) ──
+    final_grade: float = 0.0
 
 
 class SchedulerState(State):

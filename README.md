@@ -79,15 +79,15 @@ class SchedulerObservation(Observation):
 
 ## Reward Function
 
-- **Per-step**: `−stalls_this_step` (penalizes stall-inducing orderings)
-- **Episode-end bonus**: `exp(−total_stalls / max_possible_stalls)` (rewards low total stalls)
+- **Per-step**: `0.01 - stalls_this_step` (rewards progress, penalizes stall-inducing orderings)
+- **Episode-end bonus**: `0.01 + 0.98 * exp(-total_stalls / max_possible_stalls)` (normalized to (0,1) range)
 
 ## Grading
 
-Scores are in `[0.0, 1.0]`:
-- **1.0** = matches or beats the greedy-best schedule (optimal)
-- **0.0** = equal or worse than naive program order (worst)
-- Linear interpolation between these bounds
+Scores are strictly in `(0.0, 1.0)` as required by the validator:
+- **0.99** = matches or beats the greedy-best schedule (optimal)
+- **0.01** = equal or worse than naive program order (worst)
+- Linear interpolation between these bounds (squeezed to avoid exactly 0 and 1)
 
 ## Quick Start
 
@@ -121,7 +121,7 @@ async def main():
             # Pick first legal action (naive baseline)
             inst_id = result.observation.legal_actions[0]
             result = await env.step(SchedulerAction(instruction_id=inst_id))
-        print(f"Score: {result.observation.metadata['final_grade']}")
+        print(f"Score: {result.observation.final_grade}")
 
 asyncio.run(main())
 ```
@@ -141,7 +141,7 @@ with MIPSSchedulerEnv(base_url="http://localhost:8000").sync() as env:
         inst_id = result.observation.legal_actions[0]
         result = env.step(SchedulerAction(instruction_id=inst_id))
         
-    print(f"Grade: {result.observation.metadata['final_grade']}")
+    print(f"Grade: {result.observation.final_grade}")
 ```
 
 ## Evaluating All Tasks
@@ -203,4 +203,4 @@ mips_scheduler_env/
 4. **Kahn's Algorithm**: At each step, instructions with all predecessors scheduled are "legal"
 5. **Agent Chooses**: The agent picks which legal instruction to place next
 6. **Pipeline Simulation**: The chosen order is simulated cycle-by-cycle to count stalls
-7. **Grading**: Final stall count is compared against baselines → score [0, 1]
+7. **Grading**: Final stall count is compared against baselines → score (0, 1)
