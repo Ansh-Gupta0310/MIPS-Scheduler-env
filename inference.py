@@ -215,9 +215,11 @@ async def run_task(task_name: str, client: OpenAI) -> float:
             result = await env.step(SchedulerAction(instruction_id=inst_id))
             obs = result.observation
 
-            reward = result.reward or 0.0
+            reward = result.reward or 0.5
+            # Clamp reward to (0.01, 0.99) — validator requires all values in this range
+            reward = max(0.01, min(0.99, float(reward)))
             done = result.done
-            error = obs.metadata.get("error")
+            error = None  # metadata is stripped by serialization, don't try to read it
 
             rewards.append(reward)
             steps_taken = step

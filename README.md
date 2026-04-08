@@ -79,8 +79,8 @@ class SchedulerObservation(Observation):
 
 ## Reward Function
 
-- **Per-step**: `0.01 - stalls_this_step` (rewards progress, penalizes stall-inducing orderings)
-- **Episode-end bonus**: `0.01 + 0.98 * exp(-total_stalls / max_possible_stalls)` (normalized to (0,1) range)
+- **Per-step**: `0.01 + 0.98 * exp(-stalls_this_step)` — always in (0, 1); 0 stalls → 0.99, 1 stall → 0.37
+- **Final grade**: `0.01 + 0.98 * linear_interpolation(stalls)` — normalized to (0, 1) range
 
 ## Grading
 

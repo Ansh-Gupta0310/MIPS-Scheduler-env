@@ -20,7 +20,7 @@ from openenv.core.env_server.interfaces import Action, Environment, Observation
 
 from ..models import SchedulerAction, SchedulerObservation, SchedulerState
 from .dag_generator import build_dependency_dag, parse_assembly, ScheduleTracker
-from .graders import compute_episode_reward, compute_grade
+from .graders import compute_grade
 from .pipeline_simulator import (
     MIPSInstruction,
     PipelineSimulator,
@@ -105,7 +105,7 @@ class MIPSSchedulerEnvironment(
 
         return SchedulerObservation(
             done=False,
-            reward=0.0,
+            reward=0.5,
             num_instructions=dag.num_nodes,
             instructions=self._dag_dict["instructions"],
             edges=self._dag_dict["edges"],
@@ -149,7 +149,7 @@ class MIPSSchedulerEnvironment(
             # Return heavily penalized observation without advancing
             return SchedulerObservation(
                 done=False,
-                reward=-10.0,
+                reward=0.01,
                 num_instructions=self._state.num_instructions,
                 instructions=self._dag_dict["instructions"],
                 edges=self._dag_dict["edges"],
@@ -184,17 +184,14 @@ class MIPSSchedulerEnvironment(
         if self._state.step_count >= self._task.max_steps:
             done = True
 
-        # Compute reward
-        # We give a small positive bonus (+0.01) for progress (scheduling an instruction)
-        # and a penalty (-1.0) for each stall cycle caused.
-        step_reward = 0.01 - float(stalls_this_step)
-
-        if done and self._tracker.is_complete:
-            # Episode-end bonus: exp(-total_stalls/max_possible_stalls)
-            episode_bonus = compute_episode_reward(
-                self._total_stalls, self._max_possible_stalls
-            )
-            step_reward += episode_bonus
+        # Compute reward — MUST be strictly in (0, 1), never 0.0 or 1.0
+        # Use exp(-stalls) squeezed to (0.01, 0.99):
+        #   0 stalls → 0.99 (great move)
+        #   1 stall  → 0.37 (mediocre)
+        #   2 stalls → 0.14 (bad)
+        raw_reward = math.exp(-float(stalls_this_step))
+        step_reward = 0.01 + 0.98 * raw_reward  # always in [0.01, 0.99]
+        step_reward = round(max(0.01, min(0.99, step_reward)), 4)
 
         # Compute final grade if done
         # IMPORTANT: grade must be strictly in (0, 1) — never exactly 0.0 or 1.0
