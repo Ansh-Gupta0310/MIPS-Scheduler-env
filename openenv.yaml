@@ -1,0 +1,5 @@
+name: mips_scheduler_env
+version: "0.1.0"
+description: "MIPS Pipeline Instruction Scheduling Environment — RL agents learn to reorder assembly instructions to minimize pipeline stalls"
+action: SchedulerAction
+observation: SchedulerObservation
