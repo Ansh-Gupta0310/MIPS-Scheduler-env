@@ -75,7 +75,7 @@ class SchedulerObservation(Observation):
 |------|-----------|-------------|-------|-------------|
 | `easy_alu_chain` | Easy | 10 | R-type + addi | Simple ALU chains, no memory/branches |
 | `medium_memory_mix` | Medium | 20 | R + lw/sw + beq | Load-use hazards + branch prediction |
-| `hard_full_block` | Hard | 40 | Full MIPS subset | Matrix ops, many loads, complex deps + branch |
+| `hard_full_block` | Hard | 58 | Full MIPS subset | Matrix ops, many loads, complex deps + branch |
 
 ## Reward Function
 
@@ -94,11 +94,17 @@ Scores are in `[0.0, 1.0]`:
 ### Using Docker
 
 ```bash
-# Build the image
-docker build -t mips-scheduler-env:latest -f envs/mips_scheduler_env/server/Dockerfile .
+# Build the image from the environment root
+docker build -t mips-scheduler-env:latest .
 
-# Run
+# Run the Easy task
 docker run -p 8000:8000 -e MIPS_SCHEDULER_TASK=easy_alu_chain mips-scheduler-env:latest
+
+# Run the Medium task
+docker run -p 8000:8000 -e MIPS_SCHEDULER_TASK=medium_memory_mix mips-scheduler-env:latest
+
+# Run the Hard task
+docker run -p 8000:8000 -e MIPS_SCHEDULER_TASK=hard_full_block mips-scheduler-env:latest
 ```
 
 ### Using Python Client
@@ -125,12 +131,30 @@ asyncio.run(main())
 ```python
 from mips_scheduler_env import MIPSSchedulerEnv, SchedulerAction
 
+# Connect to the running container
 with MIPSSchedulerEnv(base_url="http://localhost:8000").sync() as env:
-    result = env.reset(task_name="medium_memory_mix")
+    # You can select ANY task here: 
+    # "easy_alu_chain", "medium_memory_mix", or "hard_full_block"
+    result = env.reset(task_name="hard_full_block")
+    
     while not result.done:
         inst_id = result.observation.legal_actions[0]
         result = env.step(SchedulerAction(instruction_id=inst_id))
+        
     print(f"Grade: {result.observation.metadata['final_grade']}")
+```
+
+## Evaluating All Tasks
+
+To run the full hackathon evaluation script which benchmarks your agent across all three tasks (Easy, Medium, and Hard), run the `inference.py` script provided in the root:
+
+```bash
+# Set your API credentials
+export HF_TOKEN="your_huggingface_token"
+export MODEL_NAME="Qwen/Qwen2.5-72B-Instruct"
+
+# Run the baseline evaluation
+python inference.py
 ```
 
 ## Environment Variables
