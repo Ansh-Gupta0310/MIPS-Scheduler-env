@@ -197,10 +197,13 @@ class MIPSSchedulerEnvironment(
             step_reward += episode_bonus
 
         # Compute final grade if done
+        # IMPORTANT: grade must be strictly in (0, 1) — never exactly 0.0 or 1.0
         metadata: dict[str, Any] = {}
-        grade = 0.0
+        grade = 0.01  # Default: worst possible (but still > 0)
         if done and self._tracker.is_complete:
             grade = compute_grade(self._state.task_name, self._schedule_order)
+            # Safety clamp to (0.01, 0.99)
+            grade = max(0.01, min(0.99, grade))
             metadata["final_grade"] = grade
             metadata["total_stalls"] = self._total_stalls
             metadata["total_cycles"] = self._total_cycles

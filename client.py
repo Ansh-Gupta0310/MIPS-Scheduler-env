@@ -27,7 +27,7 @@ class MIPSSchedulerEnv(EnvClient[SchedulerAction, SchedulerObservation, Schedule
         ...     while not result.done:
         ...         inst_id = result.observation.legal_actions[0]
         ...         result = await env.step(SchedulerAction(instruction_id=inst_id))
-        ...     print(f"Grade: {result.observation.metadata['final_grade']}")
+        ...     print(f"Grade: {result.observation.final_grade}")
 
     Example (sync):
         >>> with MIPSSchedulerEnv(base_url="http://localhost:8000").sync() as env:
